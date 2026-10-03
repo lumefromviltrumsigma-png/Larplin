@@ -9915,6 +9915,163 @@ tbl6.GuardBox:Button({
 	end,
 })
 
+--==================================================--
+--              WON FARM (GUARD TAB)                 --
+--==================================================--
+do
+	local ArcadeAutoFarmEnabled = false
+	local ArcadeAutoFarmTask    = nil
+	local ArcadeCurrentGame     = nil
+	local ArcadeConsoleCache    = nil
+	local ArcadeGameModule      = nil
+
+	local function findConsole()
+		if ArcadeConsoleCache and ArcadeConsoleCache.Parent then
+			return ArcadeConsoleCache
+		end
+		ArcadeConsoleCache = nil
+
+		local candidates = {
+			Workspace:FindFirstChild("Arcade"),
+			Workspace:FindFirstChild("Arcades"),
+			Workspace:FindFirstChild("Map"),
+			Workspace:FindFirstChild("Interactive"),
+			Workspace:FindFirstChild("Objects"),
+		}
+		for _, folder in ipairs(candidates) do
+			if folder then
+				local found = folder:FindFirstChild("Screen", true)
+				if found and found.Parent then
+					local par = found.Parent
+					if par:FindFirstChild("SurfaceGui") or found:FindFirstChild("SurfaceGui") then
+						ArcadeConsoleCache = par
+						return par
+					end
+				end
+			end
+		end
+
+		for _, d in ipairs(Workspace:GetChildren()) do
+			if d:IsA("Model") or d:IsA("Folder") then
+				local s = d:FindFirstChild("Screen", true)
+				if s and s:FindFirstChild("SurfaceGui") then
+					ArcadeConsoleCache = s.Parent
+					return ArcadeConsoleCache
+				end
+			end
+		end
+		return nil
+	end
+
+	local function runWinFarm()
+		if not ArcadeGameModule then
+			local ok, result = pcall(function()
+				return require(ReplicatedStorage.Modules.PlayableArcadeGame)
+			end)
+			if not ok or not result then return end
+			ArcadeGameModule = result
+		end
+
+		local console = findConsole()
+		if not console then return end
+
+		local char = localPlayer.Character
+		if not char then return end
+		local hrp = char:FindFirstChild("HumanoidRootPart")
+		if not hrp then return end
+
+		if ArcadeCurrentGame then
+			pcall(function()
+				ArcadeCurrentGame.Stopping = true
+				ArcadeCurrentGame:Destroy()
+			end)
+			ArcadeCurrentGame = nil
+		end
+
+		local g = ArcadeGameModule.new(console, hrp)
+		ArcadeCurrentGame = g
+		g:start()
+
+		local now = os.clock()
+		while g.State ~= "Running" and os.clock() - now < 3 do
+			if not ArcadeAutoFarmEnabled then
+				pcall(function() g:Destroy() end)
+				ArcadeCurrentGame = nil
+				return
+			end
+			task.wait(0.1)
+		end
+
+		if not ArcadeAutoFarmEnabled then
+			pcall(function() g:Destroy() end)
+			ArcadeCurrentGame = nil
+			return
+		end
+
+		if g.State ~= "Running" then
+			pcall(function() g:Destroy() end)
+			ArcadeCurrentGame = nil
+			return
+		end
+
+		g.Score = 4499
+		if g.ScoreLabel then
+			g.ScoreLabel.Text = "Score: 4499"
+		end
+		table.clear(g.CalculateScore)
+		for _ = 1, 99 do
+			table.insert(g.CalculateScore, "Coin")
+		end
+		g:win("You Won! Congrats! :D")
+	end
+
+	local function toggleAutoFarm(enabled)
+		enabled = enabled and true or false
+		ArcadeAutoFarmEnabled = enabled
+
+		if ArcadeAutoFarmTask then
+			pcall(function() task.cancel(ArcadeAutoFarmTask) end)
+			ArcadeAutoFarmTask = nil
+		end
+
+		if not enabled then
+			if ArcadeCurrentGame then
+				pcall(function()
+					ArcadeCurrentGame.Stopping = true
+					ArcadeCurrentGame:Destroy()
+				end)
+				ArcadeCurrentGame = nil
+			end
+			ArcadeConsoleCache = nil
+			return true
+		end
+
+		ArcadeAutoFarmTask = task.spawn(function()
+			while ArcadeAutoFarmEnabled do
+				pcall(runWinFarm)
+				if not ArcadeAutoFarmEnabled then break end
+				task.wait(2)
+			end
+			ArcadeAutoFarmTask = nil
+		end)
+		return true
+	end
+
+	tbl6.GuardBox:Toggle({
+		Title = "Won Farm",
+		Default = false,
+		Callback = function(enabled)
+			toggleAutoFarm(enabled)
+			if enabled then
+				fn5(" Won Farm", "Won Farm Enabled")
+			else
+				fn5(" Won Farm", "Won Farm Disabled")
+			end
+		end,
+	})
+end
+--==================================================--
+
 tbl.guardQteEnabled = false
 tbl2.guardQteThread = nil
 
