@@ -8882,6 +8882,65 @@ tbl6.AutoVoteBox:Toggle({
 	end,
 })
 
+--==================================================--
+--         AUTO NEXT GAME (TOOLS TAB - NEW)          --
+--==================================================--
+tbl6.AutoNextGameBox = tbl5.Tools:Section({ Opened = true, Title = "| Auto Next Game", Icon = "skip-forward" })
+
+do
+	local TargetPos = Vector3.new(-214.3, 186.86, 242.64)
+	local Radius = 80
+	local RequiredTime = 3.4
+
+	local AutoNextEnabled = false
+	local AutoNextConn = nil
+	local Timer = 0
+
+	tbl6.AutoNextGameBox:Toggle({
+		Title = "Auto Next Game",
+		Default = false,
+		Callback = function(autoNextEnabled)
+			AutoNextEnabled = autoNextEnabled and true or false
+
+			if AutoNextConn then
+				AutoNextConn:Disconnect()
+				AutoNextConn = nil
+			end
+
+			if AutoNextEnabled then
+				Timer = 0
+				fn5("Auto Next Game", "Auto Next Game Enabled")
+
+				AutoNextConn = game:GetService("RunService").Heartbeat:Connect(function(deltaTime)
+					if not AutoNextEnabled then
+						return
+					end
+
+					local character = localPlayer.Character
+					local position = character and character.PrimaryPart and character.PrimaryPart.Position
+
+					if position and (position - TargetPos).Magnitude <= Radius then
+						Timer += deltaTime
+
+						if Timer >= RequiredTime then
+							Timer = 0
+
+							pcall(function()
+								ReplicatedStorage:WaitForChild("Remotes"):WaitForChild("TemporaryReachedBindable"):FireServer()
+							end)
+						end
+					else
+						Timer = 0
+					end
+				end)
+			else
+				fn5("Auto Next Game", "Auto Next Game Disabled")
+			end
+		end,
+	})
+end
+--==================================================--
+
 do
 	local flag3 = false
 	tbl2.stealThread = nil
@@ -9904,6 +9963,39 @@ tbl6.LightsOutBox:Toggle({
 		end
 	end,
 })
+
+--==================================================--
+--         VAMPIRE VISION (LIGHTSOUT TAB - NEW)      --
+--==================================================--
+tbl6.LightsOutBox:Toggle({
+	Title = "Vampire Vision",
+	Default = false,
+	Callback = function(vampireVisionEnabled)
+		local Lighting = game:GetService("Lighting")
+		local enabled = vampireVisionEnabled and true or false
+		local vampireNightVision = Lighting:FindFirstChild("VampireNightVision")
+
+		if enabled then
+			if not vampireNightVision then
+				local colorCorrectionEffect = Instance.new("ColorCorrectionEffect")
+				colorCorrectionEffect.Name = "VampireNightVision"
+				colorCorrectionEffect.Parent = Lighting
+				vampireNightVision = colorCorrectionEffect
+			end
+
+			vampireNightVision.Brightness = 0.16
+			vampireNightVision.Contrast = 0.06
+			vampireNightVision.Saturation = -0.08
+			vampireNightVision.TintColor = Color3.fromRGB(255, 236, 236)
+
+			fn5("Vampire Vision", "Vampire Vision Enabled")
+		elseif vampireNightVision then
+			vampireNightVision:Destroy()
+			fn5("Vampire Vision", "Vampire Vision Disabled")
+		end
+	end,
+})
+--==================================================--
 
 tbl6.GuardBox = tbl5.Guard:Section({ Opened = true, Title = "| Guard Mode", Icon = "shield" })
 
